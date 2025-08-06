@@ -14,9 +14,8 @@ El estudio se basa en **507 tiendas** que declararon no utilizar Internet.
 ├── R/
 │   └── 404_analisis.R                       # Script principal en R
 ├── logs/
-│   └── 404_resultados.log                   # Tabla de frecuencias generada
-├── outputs/
-│   └── barreras_no_internet.png             # Gráfico de barras final
+│   └── tabla_404.png                        # Tabla de frecuencias generada
+│   └── No_uso_internet.jpg                  # Gráfico de barras final
 └── README.md                                # Este archivo
 
 ---
