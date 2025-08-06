@@ -1,1 +1,79 @@
+# ------------------------------------------------------------
+# ANÁLISIS COMPLETO: RAZONES DE NO-USO DE INTERNET (P404)
+# Con etiquetas completas en lugar de códigos
+# ------------------------------------------------------------
 
+Sys.setlocale("LC_NUMERIC", "C")
+library(haven)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(stringr)
+
+# 1. Cargar datos
+datos_raw <- read_dta("TenderosFU03_BLandFUmerged_pub.dta")
+
+# 2. Convertir factores y filtrar a quienes NO usan internet
+datos_no_internet <- datos_raw %>% 
+  mutate(across(c(uso_internet, starts_with("no_uso_internet")), haven::as_factor)) %>% 
+  filter(uso_internet %in% c("0", "No"))
+
+# 3. Detectar columnas reales de razones
+cols_razones <- names(datos_no_internet) %>% 
+  grep("^no_uso_internet", ., value = TRUE)
+
+# 4. Pivotear a formato largo
+razones_largo <- datos_no_internet %>% 
+  select(all_of(cols_razones)) %>% 
+  mutate(across(all_of(cols_razones), ~ as.numeric(.x) == 1, .names = "{.col}_bin")) %>% 
+  select(ends_with("_bin")) %>% 
+  pivot_longer(everything(),
+               names_to  = "opcion",
+               values_to = "marcado") %>% 
+  mutate(opcion = str_remove(opcion, "_bin"))
+
+# 5. Tabla de frecuencias con etiquetas reales
+frecuencias <- razones_largo %>% 
+  group_by(opcion) %>% 
+  summarise(Cantidad = sum(marcado, na.rm = TRUE), .groups = "drop") %>% 
+  mutate(
+    Etiqueta = case_when(
+      opcion == "no_uso_internet1" ~ "Piensa que no es necesario por el tamaño o tipo de su negocio",
+      opcion == "no_uso_internet2" ~ "No sabe cómo utilizar internet",
+      opcion == "no_uso_internet3" ~ "No tiene recursos para contratar internet",
+      opcion == "no_uso_internet4" ~ "No tiene computador/notebook/tablet/smartphone",
+      TRUE                         ~ opcion
+    ),
+    Porcentaje = Cantidad / sum(Cantidad) * 100
+  ) %>% 
+  arrange(desc(Cantidad))
+
+# 6. Función de formato numérico
+formatear_numero <- function(x) {
+  format(x, big.mark = ".", decimal.mark = ",", scientific = FALSE)
+}
+
+# 7. Gráfico de barras horizontales con etiquetas reales
+if (sum(frecuencias$Cantidad) > 0) {
+  ggplot(frecuencias, aes(x = reorder(Etiqueta, Cantidad),
+                          y = Cantidad, fill = Etiqueta)) +
+    geom_col(show.legend = FALSE) +
+    geom_text(aes(label = paste0(Cantidad, "\n(",
+                                 percent(Porcentaje/100, accuracy = .1), ")")),
+              hjust = -0.1, size = 3.8, fontface = "bold") +
+    scale_fill_brewer(palette = "Set2") +
+    labs(title = "Mayor barrera para no usar Internet",
+         subtitle = paste("Tiendas que NO usan internet:", formatear_numero(nrow(datos_no_internet))),
+         x = "", y = "Número de tiendas") +
+    theme_minimal(base_size = 13) +
+    theme(plot.title    = element_text(face = "bold", hjust = 0.5, size = 16),
+          plot.subtitle = element_text(hjust = 0.5, color = "gray40", size = 11),
+          axis.text.y   = element_text(size = 9),
+          axis.text.x   = element_blank(),
+          panel.grid    = element_blank()) +
+    coord_flip() +
+    expand_limits(x = 0)
+} else {
+  message("No se encontró ninguna tienda que haya marcado alguna razón de no-uso.")
+}
