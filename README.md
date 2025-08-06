@@ -29,5 +29,5 @@ Abre R (versión ≥ 4.0) y ejecuta:
 ```r
 install.packages(c("haven", "dplyr", "tidyr", "ggplot2", "scales", "stringr"))
 
-git clone https://github.com/Davidx34/TIC_Repository.git
+git clone https://github.com/<TU USUARIO>/TIC_Repository.git
 cd TIC_Repository
