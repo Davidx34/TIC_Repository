@@ -1,0 +1,126 @@
+# ============================================================
+# Tareas 1-5 – Universidad del Rosario
+# Penetración de Internet en tenderos – Colombia
+# ============================================================
+
+# 1. Librerías -------------------------------------------------
+library(dplyr)      # manipulación
+library(tidyr)      # pivotear
+library(stringr)    # limpieza de cadenas
+library(readxl)     # leer Excel
+library(haven)      # leer .dta (Stata)
+library(readr)
+# 2. Leer archivos -------------------------------------------
+# (ajusta las rutas a los archivos que tengas en tu equipo)
+
+# Base de tenderos
+tenderos <- read_dta("C:/Users/MG-COL-LAP/Downloads/dataverse_files (1)/TenderosFU03_Publica.dta")
+
+# Población por municipio (TerriData Dim2)
+poblacion_raw <- read_excel("C:/Users/MG-COL-LAP/Downloads/TerriData_Dim2.xlsx/TerriData_Dim2_Sub1.xlsx")
+
+# ============================================================
+# TAREA 1 – Penetración de Internet por ciudad
+# ============================================================
+frame_internet <- tenderos %>%
+  mutate(uso_internet = as.numeric(uso_internet)) %>%  # 0/1 → numérico
+  group_by(Munic_Dept, Municipio) %>%
+  summarise(internet = mean(uso_internet, na.rm = TRUE) * 100) %>%
+  ungroup() %>%
+  rename(divipola = Munic_Dept)
+
+# ============================================================
+# TAREA 2 y 3 – Penetración por actividad (col_frame + tabla_final)
+# ============================================================
+col_frame <- tenderos %>%
+  select(Munic_Dept, Municipio, uso_internet, starts_with("actG")) %>%
+  mutate(uso_internet = as.numeric(uso_internet)) %>%
+  pivot_longer(
+    cols      = starts_with("actG"),
+    names_to  = "actG",
+    values_to = "total"
+  ) %>%
+  mutate(
+    actG      = as.numeric(str_remove(actG, "actG")),
+    Actividad = factor(
+      actG,
+      levels = 1:11,
+      labels = c(
+        "Tienda",
+        "Comida preparada",
+        "Peluqueria y belleza",
+        "Ropa",
+        "Otras variedades",
+        "Papeleria y comunicaciones",
+        "Vida nocturna",
+        "Productos bajo inventario",
+        "Salud",
+        "Servicios",
+        "Ferreteria y afines"
+      )
+    )
+  )
+
+tabla_final <- col_frame %>%
+  filter(total == 1) %>%
+  group_by(Munic_Dept, Municipio, actG, Actividad) %>%
+  summarise(internet = mean(uso_internet, na.rm = TRUE) * 100) %>%
+  rename(divipola = Munic_Dept) %>%
+  arrange(Municipio, actG)
+
+# ============================================================
+# TAREA 4 – Población por municipio
+# ============================================================
+poblacion <- poblacion_raw %>%
+  rename(
+    divipola  = "Código Entidad",
+    poblacion = "Dato Numérico"
+  ) %>%
+  mutate(
+    poblacion = poblacion %>% 
+      as.character() %>% 
+      str_remove_all("[^0-9]") %>%  # quita todo lo que no sea número
+      as.numeric()
+  ) %>%
+  group_by(divipola) %>%
+  summarise(poblacion_tot = sum(poblacion, na.rm = TRUE))
+
+# ============================================================
+# TAREA 5 – Bases finales
+#   - Larga (Power BI)
+#   - Ancha  (gráficos de dispersión)
+# ============================================================
+
+# 5.1 Larga  (una fila por combinación divipola-municipio-actividad)
+# Convertir a character ambas columnas
+tabla_final <- tabla_final %>%
+  mutate(divipola = as.character(divipola))
+
+poblacion <- poblacion %>%
+  mutate(divipola = as.character(divipola))
+
+# Ahora sí unimos
+base_larga <- tabla_final %>%
+  left_join(poblacion, by = "divipola")
+
+# ============================================================
+# EXPORTAR (opcional)
+# ============================================================
+base_ancha <- base_larga %>%
+  select(divipola, Municipio, poblacion_tot, Actividad, internet) %>%
+  pivot_wider(
+    names_from = Actividad,
+    values_from = internet,
+    names_prefix = "internet_"
+  )
+
+# Ahora exportas
+ruta_escritorio <- "C:/Users/MG-COL-LAP/Downloads"
+write_csv(base_larga,  "base_larga.csv")
+write_csv(base_ancha,  "base_ancha.csv")
+write_csv(frame_internet, "penetracion_ciudad.csv")
+
+# ============================================================
+# ¡Listo!
+# ============================================================
+
