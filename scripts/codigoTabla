@@ -10,6 +10,7 @@ library(stringr)    # limpieza de cadenas
 library(readxl)     # leer Excel
 library(haven)      # leer .dta (Stata)
 library(readr)
+
 # 2. Leer archivos -------------------------------------------
 # (ajusta las rutas a los archivos que tengas en tu equipo)
 
@@ -25,7 +26,7 @@ poblacion_raw <- read_excel("C:/Users/MG-COL-LAP/Downloads/TerriData_Dim2.xlsx/T
 frame_internet <- tenderos %>%
   mutate(uso_internet = as.numeric(uso_internet)) %>%  # 0/1 → numérico
   group_by(Munic_Dept, Municipio) %>%
-  summarise(internet = mean(uso_internet, na.rm = TRUE) * 100) %>%
+  summarise(internet = round(mean(uso_internet, na.rm = TRUE) * 100, 0)) %>% # porcentaje redondeado
   ungroup() %>%
   rename(divipola = Munic_Dept)
 
@@ -64,7 +65,7 @@ col_frame <- tenderos %>%
 tabla_final <- col_frame %>%
   filter(total == 1) %>%
   group_by(Munic_Dept, Municipio, actG, Actividad) %>%
-  summarise(internet = mean(uso_internet, na.rm = TRUE) * 100) %>%
+  summarise(internet = round(mean(uso_internet, na.rm = TRUE) * 100, 0)) %>% # porcentaje redondeado
   rename(divipola = Munic_Dept) %>%
   arrange(Municipio, actG)
 
@@ -123,4 +124,3 @@ write_csv(frame_internet, "penetracion_ciudad.csv")
 # ============================================================
 # ¡Listo!
 # ============================================================
-
